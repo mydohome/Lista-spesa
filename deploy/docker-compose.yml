@@ -70,10 +70,6 @@ services:
       - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - backend
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     mem_limit: 512m
     cpus: 1.0
     healthcheck:
