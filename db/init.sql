@@ -67,26 +67,54 @@ INSERT INTO supermercati (nome, indirizzo, lat, lng, fonte_prezzi) VALUES
 
 INSERT INTO prodotti (nome_canonico, marca, categoria, formato) VALUES
     ('Latte intero', 'Parmalat', 'Latticini', '1L'),
-    ('Pasta spaghetti n.5', 'Barilla', 'Pasta', '500g'),
+    ('Pasta spaghetti n.5', 'Rummo', 'Pasta', '500g'),
+    ('Pasta spaghetti n.5', 'La Molisana', 'Pasta', '500g'),
+    ('Pasta spaghetti n.5', 'Armando', 'Pasta', '500g'),
+    ('Pasta spaghetti n.5', 'Garofalo', 'Pasta', '500g'),
     ('Pane bianco', 'Generico', 'Pane', '500g'),
     ('Olio extravergine oliva', 'Monini', 'Condimenti', '1L'),
-    ('Uova fresche', 'Generico', 'Uova', 'confezione da 6');
+    ('Uova fresche', 'Generico', 'Uova', 'confezione da 6'),
+    ('Acqua naturale', 'Uliveto', 'Bevande', 'confezione da 6 x 1,5L');
 
--- Prezzi di esempio per ciascun prodotto in ciascuno dei 7 supermercati
--- (supermercato_id segue l'ordine di inserimento sopra, 1=INCOOP ... 7=Todis)
-INSERT INTO prezzi (prodotto_id, supermercato_id, prezzo, in_offerta) VALUES
-    (1, 1, 1.38, FALSE), (1, 2, 1.32, FALSE), (1, 3, 1.35, FALSE), (1, 4, 1.29, TRUE),
-    (1, 5, 1.40, FALSE), (1, 6, 1.19, FALSE), (1, 7, 1.22, TRUE),
+-- Prezzi di esempio SOLO per i prodotti di cui abbiamo già dati mock
+-- (Latte, Pane, Olio, Uova). Pasta (4 marche) e Acqua Uliveto restano senza
+-- prezzo finché non vengono inseriti quelli reali: meglio "nessun prezzo
+-- trovato" in app che un numero inventato.
+INSERT INTO prezzi (prodotto_id, supermercato_id, prezzo, in_offerta)
+SELECT p.id, s.id, v.prezzo, v.in_offerta
+FROM (VALUES
+    ('Latte intero',              'INCOOP (Coop)',                  1.38, FALSE),
+    ('Latte intero',              'Pewex',                           1.32, FALSE),
+    ('Latte intero',              'SPAZIO CONAD (Porta di Roma)',   1.35, FALSE),
+    ('Latte intero',              'Carrefour Iper',                  1.29, TRUE),
+    ('Latte intero',              'Pam Bufalotta',                   1.40, FALSE),
+    ('Latte intero',              'Eurospin',                        1.19, FALSE),
+    ('Latte intero',              'Todis',                           1.22, TRUE),
 
-    (2, 1, 0.92, FALSE), (2, 2, 0.89, FALSE), (2, 3, 0.95, FALSE), (2, 4, 0.85, FALSE),
-    (2, 5, 0.99, FALSE), (2, 6, 0.75, TRUE),  (2, 7, 0.79, FALSE),
+    ('Pane bianco',               'INCOOP (Coop)',                  1.15, FALSE),
+    ('Pane bianco',               'Pewex',                           1.05, FALSE),
+    ('Pane bianco',               'SPAZIO CONAD (Porta di Roma)',   1.20, FALSE),
+    ('Pane bianco',               'Carrefour Iper',                  1.10, FALSE),
+    ('Pane bianco',               'Pam Bufalotta',                   1.18, FALSE),
+    ('Pane bianco',               'Eurospin',                        0.95, FALSE),
+    ('Pane bianco',               'Todis',                           0.98, TRUE),
 
-    (3, 1, 1.15, FALSE), (3, 2, 1.05, FALSE), (3, 3, 1.20, FALSE), (3, 4, 1.10, FALSE),
-    (3, 5, 1.18, FALSE), (3, 6, 0.95, FALSE), (3, 7, 0.98, TRUE),
+    ('Olio extravergine oliva',   'INCOOP (Coop)',                  7.10, FALSE),
+    ('Olio extravergine oliva',   'Pewex',                           6.80, FALSE),
+    ('Olio extravergine oliva',   'SPAZIO CONAD (Porta di Roma)',   6.95, FALSE),
+    ('Olio extravergine oliva',   'Carrefour Iper',                  6.50, TRUE),
+    ('Olio extravergine oliva',   'Pam Bufalotta',                   7.20, FALSE),
+    ('Olio extravergine oliva',   'Eurospin',                        5.99, FALSE),
+    ('Olio extravergine oliva',   'Todis',                           6.10, FALSE),
 
-    (4, 1, 7.10, FALSE), (4, 2, 6.80, FALSE), (4, 3, 6.95, FALSE), (4, 4, 6.50, TRUE),
-    (4, 5, 7.20, FALSE), (4, 6, 5.99, FALSE), (4, 7, 6.10, FALSE),
-
-    (5, 1, 2.15, FALSE), (5, 2, 2.05, FALSE), (5, 3, 2.20, FALSE), (5, 4, 1.99, FALSE),
-    (5, 5, 2.25, FALSE), (5, 6, 1.79, TRUE),  (5, 7, 1.85, FALSE);
+    ('Uova fresche',              'INCOOP (Coop)',                  2.15, FALSE),
+    ('Uova fresche',              'Pewex',                           2.05, FALSE),
+    ('Uova fresche',              'SPAZIO CONAD (Porta di Roma)',   2.20, FALSE),
+    ('Uova fresche',              'Carrefour Iper',                  1.99, FALSE),
+    ('Uova fresche',              'Pam Bufalotta',                   2.25, FALSE),
+    ('Uova fresche',              'Eurospin',                        1.79, TRUE),
+    ('Uova fresche',              'Todis',                           1.85, FALSE)
+) AS v(nome_prodotto, nome_supermercato, prezzo, in_offerta)
+JOIN prodotti p ON p.nome_canonico = v.nome_prodotto AND p.marca IN ('Parmalat', 'Generico', 'Monini')
+JOIN supermercati s ON s.nome = v.nome_supermercato;
 
