@@ -81,7 +81,11 @@ services:
 
   # Servizio ON-DEMAND (mai in proxy-net, non deve essere raggiungibile da
   # fuori): non parte con "docker compose up -d". Si esegue con:
-  #   docker compose run --rm scraper python estrai_prezzi.py --dry-run
+  #   docker compose run --rm scraper python estrai_prezzi.py invia
+  #
+  # Sta su DUE reti: "backend" per scrivere sul database, e "internet" (non
+  # internal) perché deve uscire a scaricare i volantini — unico servizio
+  # che ha bisogno di entrambe le cose.
   scraper:
     build: ../scraper
     container_name: spesa-scraper
@@ -92,6 +96,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@spesa-db:5432/${POSTGRES_DB}
     networks:
       - backend
+      - internet
     depends_on:
       db:
         condition: service_healthy
@@ -101,3 +106,6 @@ networks:
     external: true
   backend:
     internal: true
+  # Solo per lo scraper: NON internal, ha bisogno di uscire su internet per
+  # scaricare i volantini. Backend e db restano isolati su "backend".
+  internet:
