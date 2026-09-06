@@ -79,6 +79,23 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Servizio ON-DEMAND (mai in proxy-net, non deve essere raggiungibile da
+  # fuori): non parte con "docker compose up -d". Si esegue con:
+  #   docker compose run --rm scraper python estrai_prezzi.py --dry-run
+  scraper:
+    build: ../scraper
+    container_name: spesa-scraper
+    profiles: ["tools"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@spesa-db:5432/${POSTGRES_DB}
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+
 networks:
   proxy-net:
     external: true

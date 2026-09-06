@@ -48,5 +48,18 @@ services:
       timeout: 5s
       retries: 10
 
+  # Servizio ON-DEMAND: non parte con "docker compose up". Si esegue con:
+  #   docker compose run --rm scraper python estrai_prezzi.py --dry-run
+  scraper:
+    build: ./scraper
+    container_name: spesa-scraper
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql://spesa:spesa_pass@spesa-db:5432/spesa_db
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db_data:
