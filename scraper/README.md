@@ -58,6 +58,24 @@ backend).
 
 ## Costi
 
-Con Claude Haiku e volantini di poche decine di pagine per supermercato,
-il costo per un giro completo sui 6 supermercati è dell'ordine di pochi
-centesimi (dipende dal numero di pagine per volantino).
+Claude fattura le immagini in base ai **pixel**, non al peso del file. Le
+pagine di volantino scaricate sono spesso a piena risoluzione (es.
+1700×2400px = ~5.400 token per immagine). Lo scraper le ridimensiona
+automaticamente (lato massimo 1024px, vedi `LATO_MASSIMO_IMMAGINE_PX` in
+`config.py`) prima di inviarle: la stessa pagina scende a ~980 token,
+circa **5-6 volte più economica**, senza perdita pratica di leggibilità dei
+prezzi stampati.
+
+Con Claude Haiku, immagini ridimensionate e volantini di poche decine di
+pagine, un giro completo sui 6 supermercati coperti resta nell'ordine di
+**pochi centesimi di dollaro** in totale, non per supermercato.
+
+Se in futuro i costi dovessero comunque preoccupare, altre leve disponibili
+(non ancora implementate):
+- alzare `DIMENSIONE_BATCH_IMMAGINI` per fare meno chiamate (rischio: il
+  modello "perde" prodotti su troppe pagine insieme)
+- scaricare solo le pagine centrali del volantino (dove tipicamente stanno
+  alimentari e bevande, saltando copertina/retro con info legali) invece
+  di tutte le pagine
+- abbassare ulteriormente `LATO_MASSIMO_IMMAGINE_PX` (es. 768px): rischio
+  di perdere leggibilità su prezzi scritti piccoli

@@ -69,6 +69,14 @@ PRODOTTI_TARGET = [
 # chiamate ma rischio che il modello "perda" prodotti su pagine affollate.
 DIMENSIONE_BATCH_IMMAGINI = 4
 
+# IMPORTANTE per i costi: Claude fattura le immagini in base ai PIXEL, non
+# al peso del file. Le pagine di volantino scaricate sono spesso a
+# risoluzione piena (es. 1700x2400px) — molto più del necessario per
+# leggere un prezzo stampato. Le ridimensioniamo prima di inviarle: questo
+# singolo accorgimento riduce il costo per immagine di un fattore 5-6x
+# circa, senza perdita pratica di leggibilità.
+LATO_MASSIMO_IMMAGINE_PX = 1024
+
 # Numero massimo di pagine di volantino da scaricare per supermercato
 # (i volantini di questi formati raramente superano le 50 pagine; un limite
 # evita di scaricare volantini enormi per errore di parsing).

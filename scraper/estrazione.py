@@ -9,10 +9,35 @@ e a che prezzo.
 import os
 import json
 import base64
+import io
+from PIL import Image
 from anthropic import Anthropic
-from config import PRODOTTI_TARGET, DIMENSIONE_BATCH_IMMAGINI
+from config import PRODOTTI_TARGET, DIMENSIONE_BATCH_IMMAGINI, LATO_MASSIMO_IMMAGINE_PX
 
 MODEL = "claude-haiku-4-5-20251001"
+
+
+def _ridimensiona_immagine(img_bytes: bytes, lato_massimo: int) -> bytes:
+    """Ridimensiona l'immagine così che il lato più lungo sia al massimo
+    'lato_massimo' pixel, mantenendo le proporzioni. Claude fattura le
+    immagini in base ai pixel: questo passaggio è il modo più efficace per
+    tenere bassi i costi senza perdere la leggibilità dei prezzi stampati.
+    """
+    try:
+        img = Image.open(io.BytesIO(img_bytes))
+        img = img.convert("RGB")  # normalizza eventuali PNG con canale alpha
+        larghezza, altezza = img.size
+        lato_attuale = max(larghezza, altezza)
+        if lato_attuale > lato_massimo:
+            scala = lato_massimo / lato_attuale
+            nuova_dimensione = (int(larghezza * scala), int(altezza * scala))
+            img = img.resize(nuova_dimensione, Image.LANCZOS)
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=85)
+        return buffer.getvalue()
+    except Exception as e:
+        print(f"  [avviso] ridimensionamento immagine fallito, uso originale: {e}")
+        return img_bytes
 
 
 def _client() -> Anthropic:
@@ -72,13 +97,14 @@ promozione/sconto, false altrimenti.""",
             }
         ]
         for img_bytes in gruppo:
+            img_ridotta = _ridimensiona_immagine(img_bytes, LATO_MASSIMO_IMMAGINE_PX)
             content.append(
                 {
                     "type": "image",
                     "source": {
                         "type": "base64",
                         "media_type": "image/jpeg",
-                        "data": base64.b64encode(img_bytes).decode("utf-8"),
+                        "data": base64.b64encode(img_ridotta).decode("utf-8"),
                     },
                 }
             )
