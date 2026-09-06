@@ -30,8 +30,12 @@ docker compose up --build
 
 ## Deploy in produzione
 
-Vedi [`deploy/README-deploy.md`](deploy/README-deploy.md) per il deploy
-dietro Nginx Proxy Manager, senza porte esposte sull'host.
+Due opzioni, a seconda di dove vuoi raggiungere l'app:
+
+- [`deploy/`](deploy/README-deploy.md) — dietro Nginx Proxy Manager, con
+  dominio pubblico e HTTPS, nessuna porta esposta sull'host.
+- [`deploy-lan/`](deploy-lan/README-lan.md) — solo rete locale (casa/ufficio),
+  senza NPM né HTTPS: il frontend espone direttamente una porta sull'host.
 
 ## Normalizzazione prodotti via AI (opzionale)
 

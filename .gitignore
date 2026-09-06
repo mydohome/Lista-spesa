@@ -1,9 +1,11 @@
 # Segreti — mai committare
 .env
 deploy/.env
+deploy-lan/.env
 
 # Dati persistenti
 deploy/db-data/
+deploy-lan/db-data/
 db/data/
 
 # Python

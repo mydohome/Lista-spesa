@@ -1,0 +1,62 @@
+# Deploy semplice per uso solo in rete locale (LAN), senza Nginx Proxy
+# Manager: il frontend espone direttamente una porta sull'host.
+#
+# Adatto se la macchina è già isolata dietro il router di casa/ufficio e non
+# serve un dominio pubblico né HTTPS (es. http://192.168.1.50:8080).
+#
+# Se in futuro vuoi esporlo anche su internet, usa invece deploy/ (dietro NPM).
+
+services:
+  frontend:
+    build: ../frontend
+    container_name: spesa-frontend
+    restart: unless-stopped
+    ports:
+      # Cambia "8080" se la porta è già occupata sulla macchina.
+      # Il secondo numero (80) è la porta interna del container, non toccarla.
+      - "8080:80"
+    networks:
+      - backend
+    depends_on:
+      - backend
+
+  backend:
+    build: ../backend
+    container_name: spesa-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@spesa-db:5432/${POSTGRES_DB}
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    # Niente "ports": il backend è raggiunto solo dal frontend, via nginx,
+    # sulla rete Docker interna. Se vuoi comunque poter aprire /docs per
+    # debug da un altro PC in LAN, scommenta le due righe seguenti:
+    # ports:
+    #   - "8000:8000"
+
+  db:
+    image: postgres:16-alpine
+    container_name: spesa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+      - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  backend:
