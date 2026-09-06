@@ -22,19 +22,33 @@ parte (es. sito ufficiale eurospin.it, o inserimento manuale).
 
 ## Uso
 
-Prima di tutto, un test **senza scrivere nel database** (dry-run), su un
-solo supermercato:
+Lo scraper usa la **Batch API** di Claude: le richieste vengono elaborate in
+modo asincrono (non istantaneo — di solito minuti, a volte di più) a **metà
+prezzo** rispetto alle chiamate dirette. Per questo l'operazione è divisa
+in due passi separati, da lanciare in momenti diversi.
+
+**Passo 1 — invia** (scarica i volantini, prepara le richieste, le invia):
 
 ```bash
-docker compose run --rm scraper python estrai_prezzi.py --supermercato Pewex --dry-run
+docker compose run --rm scraper python estrai_prezzi.py invia --supermercato Pewex
 ```
 
-Se l'output ti sembra corretto, rilancialo senza `--dry-run` per salvare
-davvero, oppure senza `--supermercato` per farli tutti:
+Senza `--supermercato`, elabora tutti e 6 i supermercati configurati.
+
+**Passo 2 — controlla** (qualche minuto/ora dopo, verifica se è pronto e
+salva i risultati):
 
 ```bash
-docker compose run --rm scraper python estrai_prezzi.py
+docker compose run --rm scraper python estrai_prezzi.py controlla --dry-run
 ```
+
+Se lo stato è ancora `in_progress`, rilancia lo stesso comando più tardi.
+Quando è pronto, stampa i prodotti trovati; togli `--dry-run` per scriverli
+davvero nel database.
+
+Lo stato del batch in corso (id + a quale supermercato appartiene ogni
+richiesta) resta salvato in `stato_batch.json` dentro questa cartella tra
+un passo e l'altro — non va committato (già in `.gitignore`).
 
 Richiede `ANTHROPIC_API_KEY` impostata nel `.env` (stesso file usato dal
 backend).
@@ -66,13 +80,19 @@ automaticamente (lato massimo 1024px, vedi `LATO_MASSIMO_IMMAGINE_PX` in
 circa **5-6 volte più economica**, senza perdita pratica di leggibilità dei
 prezzi stampati.
 
-Con Claude Haiku, immagini ridimensionate e volantini di poche decine di
-pagine, un giro completo sui 6 supermercati coperti resta nell'ordine di
-**pochi centesimi di dollaro** in totale, non per supermercato.
+In più, usando la **Batch API** invece delle chiamate dirette, tutto il
+lavoro costa un ulteriore **50% in meno** (sia input che output) — l'unico
+costo è aspettare che il batch venga elaborato invece di avere la risposta
+subito, cosa che per uno scraper lanciato a mano ogni 1-2 settimane non
+cambia nulla in pratica.
+
+Con Haiku, immagini ridimensionate, Batch API e volantini di poche decine
+di pagine, un giro completo sui 6 supermercati coperti resta nell'ordine
+di **frazioni di centesimo di dollaro** in totale.
 
 Se in futuro i costi dovessero comunque preoccupare, altre leve disponibili
 (non ancora implementate):
-- alzare `DIMENSIONE_BATCH_IMMAGINI` per fare meno chiamate (rischio: il
+- alzare `DIMENSIONE_BATCH_IMMAGINI` per fare meno richieste (rischio: il
   modello "perde" prodotti su troppe pagine insieme)
 - scaricare solo le pagine centrali del volantino (dove tipicamente stanno
   alimentari e bevande, saltando copertina/retro con info legali) invece

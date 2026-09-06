@@ -1,17 +1,15 @@
 """
-Manda le immagini di volantino a Claude (vision) chiedendo di individuare
-SOLO i prodotti che ci interessano (config.PRODOTTI_TARGET), per tenere
-sotto controllo sia i costi che le allucinazioni: il modello non deve
-"inventare" un catalogo, deve solo dire se vede uno dei prodotti richiesti
-e a che prezzo.
+Costruisce le richieste per la Batch API di Claude (elaborazione asincrona,
+50% più economica sia in input che in output rispetto alle chiamate
+dirette — perfetta per questo scraper, che non ha bisogno di risposte
+immediate) e interpreta i risultati una volta pronti.
 """
 
-import os
 import json
 import base64
 import io
+import re
 from PIL import Image
-from anthropic import Anthropic
 from config import PRODOTTI_TARGET, DIMENSIONE_BATCH_IMMAGINI, LATO_MASSIMO_IMMAGINE_PX
 
 MODEL = "claude-haiku-4-5-20251001"
@@ -20,12 +18,12 @@ MODEL = "claude-haiku-4-5-20251001"
 def _ridimensiona_immagine(img_bytes: bytes, lato_massimo: int) -> bytes:
     """Ridimensiona l'immagine così che il lato più lungo sia al massimo
     'lato_massimo' pixel, mantenendo le proporzioni. Claude fattura le
-    immagini in base ai pixel: questo passaggio è il modo più efficace per
-    tenere bassi i costi senza perdere la leggibilità dei prezzi stampati.
+    immagini in base ai pixel: questo passaggio tiene bassi i costi senza
+    perdere la leggibilità dei prezzi stampati.
     """
     try:
         img = Image.open(io.BytesIO(img_bytes))
-        img = img.convert("RGB")  # normalizza eventuali PNG con canale alpha
+        img = img.convert("RGB")
         larghezza, altezza = img.size
         lato_attuale = max(larghezza, altezza)
         if lato_attuale > lato_massimo:
@@ -38,16 +36,6 @@ def _ridimensiona_immagine(img_bytes: bytes, lato_massimo: int) -> bytes:
     except Exception as e:
         print(f"  [avviso] ridimensionamento immagine fallito, uso originale: {e}")
         return img_bytes
-
-
-def _client() -> Anthropic:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY non impostata: impossibile usare Claude per "
-            "l'estrazione. Impostala nel file .env di deploy/."
-        )
-    return Anthropic(api_key=api_key)
 
 
 def _prompt_prodotti_target() -> str:
@@ -63,16 +51,23 @@ def _batch(lista: list, dimensione: int):
         yield lista[i : i + dimensione]
 
 
-def estrai_prezzi_da_immagini(immagini_bytes: list[bytes]) -> list[dict]:
-    """Ritorna una lista di dict: {nome_canonico, marca, formato, prezzo,
-    in_offerta}, solo per i prodotti EFFETTIVAMENTE trovati nelle immagini.
+def sanitizza_custom_id(testo: str) -> str:
+    """La Batch API richiede custom_id che matchino [a-zA-Z0-9_-]{1,64}."""
+    pulito = re.sub(r"[^a-zA-Z0-9_-]", "_", testo)
+    return pulito[:64]
+
+
+def costruisci_richieste_batch(nome_supermercato: str, immagini_bytes: list[bytes]) -> list[dict]:
+    """Ritorna una lista di richieste pronte per client.messages.batches.create(),
+    una per ogni gruppo di immagini. Ogni richiesta ha un custom_id univoco
+    che include il nome del supermercato e l'indice del gruppo, per poter
+    riassociare i risultati in seguito.
     """
-    client = _client()
-    trovati = []
-
+    richieste = []
     prompt_prodotti = _prompt_prodotti_target()
+    nome_sanitizzato = sanitizza_custom_id(nome_supermercato)
 
-    for gruppo in _batch(immagini_bytes, DIMENSIONE_BATCH_IMMAGINI):
+    for indice, gruppo in enumerate(_batch(immagini_bytes, DIMENSIONE_BATCH_IMMAGINI)):
         content = [
             {
                 "type": "text",
@@ -109,17 +104,27 @@ promozione/sconto, false altrimenti.""",
                 }
             )
 
-        risposta = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": content}],
+        richieste.append(
+            {
+                "custom_id": f"{nome_sanitizzato}__{indice}",
+                "params": {
+                    "model": MODEL,
+                    "max_tokens": 1024,
+                    "messages": [{"role": "user", "content": content}],
+                },
+            }
         )
-        testo = risposta.content[0].text.strip()
-        try:
-            risultati = json.loads(testo)
-            if isinstance(risultati, list):
-                trovati.extend(risultati)
-        except json.JSONDecodeError:
-            print(f"  [avviso] risposta non-JSON ignorata: {testo[:200]}")
 
-    return trovati
+    return richieste
+
+
+def interpreta_testo_risultato(testo: str) -> list[dict]:
+    """Converte il testo di risposta di un singolo risultato del batch in
+    una lista di prodotti trovati (lista vuota se non parsabile o vuota).
+    """
+    try:
+        risultati = json.loads(testo.strip())
+        return risultati if isinstance(risultati, list) else []
+    except json.JSONDecodeError:
+        print(f"  [avviso] risposta non-JSON ignorata: {testo[:200]}")
+        return []
