@@ -1,0 +1,94 @@
+# Deploy dietro Nginx Proxy Manager. Vedi README-deploy.md per i passi
+# completi. Riusa lo stesso codice di backend/ e frontend/ nella root del
+# repo (build context ../backend e ../frontend).
+#
+# Solo "frontend" sta su proxy-net. backend e db stanno esclusivamente sulla
+# rete interna "backend", mai raggiungibili da fuori né da NPM direttamente.
+#
+# In NPM: crea un Proxy Host che punta a http://spesa-frontend:80
+#
+# Esegui i comandi da dentro questa cartella (deploy/), dopo aver creato
+# qui un file .env a partire da .env.example.
+
+services:
+  frontend:
+    build: ../frontend
+    container_name: spesa-frontend
+    restart: unless-stopped
+    networks:
+      - proxy-net
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      - backend
+
+  backend:
+    build: ../backend
+    container_name: spesa-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@spesa-db:5432/${POSTGRES_DB}
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: spesa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+      - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  proxy-net:
+    external: true
+  backend:
+    internal: true

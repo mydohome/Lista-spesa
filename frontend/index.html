@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista della spesa</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>Lista della spesa</h1>
+
+    <section class="aggiungi">
+      <input type="text" id="ricerca" placeholder="Aggiungi un prodotto…" autocomplete="off">
+      <ul id="suggerimenti" class="suggerimenti"></ul>
+    </section>
+
+    <section class="lista">
+      <ul id="voci-lista"></ul>
+      <p id="lista-vuota" class="vuoto" hidden>La lista è vuota. Aggiungi un prodotto per iniziare.</p>
+    </section>
+
+    <section class="azioni" id="azioni" hidden>
+      <div class="strategia">
+        <label>
+          <input type="radio" name="strategia" value="risparmio_massimo" checked>
+          Risparmio massimo (più negozi)
+        </label>
+        <label>
+          <input type="radio" name="strategia" value="minimo_supermercati">
+          Un solo supermercato
+        </label>
+      </div>
+      <button id="btn-ottimizza">Genera liste per supermercato</button>
+    </section>
+
+    <section id="risultato" class="risultato" hidden></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+# Sviluppo locale. Per il deploy in produzione dietro Nginx Proxy Manager
+# vedi deploy/docker-compose.yml.
+#
+# Frontend, backend e db usano lo STESSO codice in dev e prod: cambia solo
+# il compose (qui porte esposte per comodità, in deploy/ nessuna porta).
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: spesa-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    container_name: spesa-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://spesa:spesa_pass@spesa-db:5432/spesa_db
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8000:8000"   # comodo in dev per /docs, in prod non esposta
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
+
+  db:
+    image: postgres:16-alpine
+    container_name: spesa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spesa
+      POSTGRES_PASSWORD: spesa_pass
+      POSTGRES_DB: spesa_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spesa -d spesa_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:
